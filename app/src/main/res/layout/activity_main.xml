@@ -1,0 +1,52 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/r"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/thumb_background_color"
+    tools:context=".MainActivity">
+
+
+    <ImageView
+        android:id="@+id/place_holder_imageview"
+        android:layout_width="match_parent"
+        android:layout_height="360dp"
+        android:layout_alignParentTop="true"
+        android:background="@color/placeholder_background"
+        android:scaleType="centerCrop"
+        tools:src="@drawable/dog" />
+
+    <android.support.design.widget.TabLayout
+        android:id="@+id/tabs"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        app:tabGravity="fill"
+        app:tabMode="fixed">
+
+        <android.support.design.widget.TabItem
+            android:id="@+id/filterTab"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/filters" />
+
+        <android.support.design.widget.TabItem
+            android:id="@+id/editTab"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/edit" />
+    </android.support.design.widget.TabLayout>
+
+    <fragment
+        android:id="@+id/fragment"
+        android:name="com.example.m999g.photofilters.seekbarFragment"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_above="@id/tabs"
+        android:layout_alignParentBottom="true"
+        android:layout_below="@id/place_holder_imageview"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="50dp" />
+
+</RelativeLayout>
