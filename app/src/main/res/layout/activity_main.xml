@@ -16,6 +16,24 @@
         android:background="@color/placeholder_background"
         android:scaleType="centerCrop"
         tools:src="@drawable/dog" />
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/recycler_size"
+        android:layout_alignParentLeft="true"
+        android:layout_below="@id/place_holder_imageview"
+        android:layout_centerVertical="true"
+        android:background="@color/thumb_background_color">
+
+        <android.support.v7.widget.RecyclerView
+            android:id="@+id/thumbnails"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/thumbnail_vertical_padding"
+            android:layout_marginTop="@dimen/thumbnail_vertical_padding"
+            android:clipToPadding="false" />
+
+
+    </RelativeLayout>
 
     <android.support.design.widget.TabLayout
         android:id="@+id/tabs"
@@ -37,16 +55,5 @@
             android:layout_height="wrap_content"
             android:text="@string/edit" />
     </android.support.design.widget.TabLayout>
-
-    <fragment
-        android:id="@+id/fragment"
-        android:name="com.example.m999g.photofilters.seekbarFragment"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_above="@id/tabs"
-        android:layout_alignParentBottom="true"
-        android:layout_below="@id/place_holder_imageview"
-        android:layout_centerHorizontal="true"
-        android:layout_marginBottom="50dp" />
 
 </RelativeLayout>

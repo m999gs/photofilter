@@ -48,31 +48,22 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class MainActivity extends AppCompatActivity implements FilterFragment.FiltersListFragmentListener,seekbarFragment.EditImageFragmentListener{
+public class MainActivity extends AppCompatActivity implements ThumbnailCallback{
 
     private static int PICK_IMAGE = 1;
     private static final int READ_MEMORY_PERMISSIONS_REQUEST = 1;
 
     private ImageView placeHolderImageView;
 
-    Bitmap originalImage;
-    // to backup image with filter applied
-    Bitmap filteredImage;
+    private RecyclerView thumbListView;
+    private Bitmap thumbImage;
+    int drawable;
 
-    // the final image after applying
-    // brightness, saturation, contrast
-    Bitmap finalImage;
-
-    // modified image values
-    int brightnessFinal = 0;
-    float saturationFinal = 1.0f;
-    float contrastFinal = 1.0f;
 
     static {
         System.loadLibrary("NativeImageProcessor");
     }
     private Activity activity;
-    int drawable;
 
     @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
@@ -81,8 +72,8 @@ public class MainActivity extends AppCompatActivity implements FilterFragment.Fi
         setContentView(R.layout.activity_main);
         activity = this;
         drawable = R.drawable.dog;
-        TabLayout tabs=findViewById(R.id.tabs);
-        placeHolderImageView = (ImageView) findViewById(R.id.place_holder_imageview);
+        thumbImage=Bitmap.createScaledBitmap(BitmapFactory.decodeResource(this.getApplicationContext().getResources(), drawable), 640, 640, false);
+        initUIWidgets();
         getPermissionToAccessStorage();
     }
 
@@ -94,6 +85,50 @@ public class MainActivity extends AppCompatActivity implements FilterFragment.Fi
         inflater.inflate(R.menu.menu, menu);
         return true;
     }
+
+    private void initUIWidgets() {
+        thumbListView = (RecyclerView) findViewById(R.id.thumbnails);
+        placeHolderImageView = (ImageView) findViewById(R.id.place_holder_imageview);
+        placeHolderImageView.setImageBitmap(Bitmap.createScaledBitmap(BitmapFactory.decodeResource(this.getApplicationContext().getResources(), drawable), 640, 640, false));
+        initHorizontalList();
+    }
+
+    private void initHorizontalList() {
+        LinearLayoutManager layoutManager = new LinearLayoutManager(this);
+        layoutManager.setOrientation(LinearLayoutManager.HORIZONTAL);
+        layoutManager.scrollToPosition(0);
+        thumbListView.setLayoutManager(layoutManager);
+        thumbListView.setHasFixedSize(true);
+        bindDataToAdapter();
+    }
+
+    private void bindDataToAdapter() {
+        final Context context = this.getApplication();
+        Handler handler = new Handler();
+        Runnable r = new Runnable() {
+            public void run() {
+                ThumbnailsManager.clearThumbs();
+                List<Filter> filters = FilterPack.getFilterPack(getApplicationContext());
+
+                for (Filter filter : filters) {
+                    ThumbnailItem thumbnailItem = new ThumbnailItem();
+                    thumbnailItem.filterName=filter.getName();
+                    thumbnailItem.image = thumbImage;
+                    thumbnailItem.filter = filter;
+                    ThumbnailsManager.addThumb(thumbnailItem);
+                }
+
+                List<ThumbnailItem> thumbs = ThumbnailsManager.processThumbs(context);
+
+                ThumbnailsAdapter adapter = new ThumbnailsAdapter(thumbs, (ThumbnailCallback) activity);
+                thumbListView.setAdapter(adapter);
+
+                adapter.notifyDataSetChanged();
+            }
+        };
+        handler.post(r);
+    }
+
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
@@ -122,8 +157,12 @@ public class MainActivity extends AppCompatActivity implements FilterFragment.Fi
         if (resultCode == RESULT_OK && requestCode == PICK_IMAGE) {
             Uri imageuri = data.getData();
             placeHolderImageView.setImageURI(imageuri);
-
-
+            try {
+                thumbImage=MediaStore.Images.Media.getBitmap(this.getContentResolver(), imageuri);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            initHorizontalList();
         }
     }
 
@@ -185,51 +224,11 @@ public class MainActivity extends AppCompatActivity implements FilterFragment.Fi
             requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, READ_MEMORY_PERMISSIONS_REQUEST);
         }
     }
-
-
     @Override
-    public void onFilterSelected(Filter filter) {
-
-    }
-    @Override
-    public void onBrightnessChanged(final int brightness) {
-        brightnessFinal = brightness;
-        Filter myFilter = new Filter();
-        myFilter.addSubFilter(new BrightnessSubFilter(brightness));
-        placeHolderImageView.setImageBitmap(myFilter.processFilter(Bitmap.createScaledBitmap(BitmapFactory.decodeResource(this.getApplicationContext().getResources(), drawable), 640, 640, false)));
+    public void onThumbnailClick(Filter filter) {
+        placeHolderImageView.setImageBitmap(filter.processFilter(Bitmap.createScaledBitmap(BitmapFactory.decodeResource(this.getApplicationContext().getResources(), drawable), 640, 640, false)));
     }
 
-    @Override
-    public void onSaturationChanged(final float saturation) {
-        saturationFinal = saturation;
-        Filter myFilter = new Filter();
-        myFilter.addSubFilter(new SaturationSubfilter(saturation));
-        placeHolderImageView.setImageBitmap(myFilter.processFilter(Bitmap.createScaledBitmap(BitmapFactory.decodeResource(this.getApplicationContext().getResources(), drawable), 640, 640, false)));
-    }
 
-    @Override
-    public void onContrastChanged(final float contrast) {
-        contrastFinal = contrast;
-        Filter myFilter = new Filter();
-        myFilter.addSubFilter(new ContrastSubFilter(contrast));
-        placeHolderImageView.setImageBitmap(myFilter.processFilter(Bitmap.createScaledBitmap(BitmapFactory.decodeResource(this.getApplicationContext().getResources(), drawable), 640, 640, false)));
-    }
-
-    @Override
-    public void onEditStarted() {
-
-    }
-    @Override
-    public void onEditCompleted() {
-        // once the editing is done i.e seekbar is drag is completed,
-        // apply the values on to filtered image
-        final Bitmap bitmap = filteredImage.copy(Bitmap.Config.ARGB_8888, true);
-
-        Filter myFilter = new Filter();
-        myFilter.addSubFilter(new BrightnessSubFilter(brightnessFinal));
-        myFilter.addSubFilter(new ContrastSubFilter(contrastFinal));
-        myFilter.addSubFilter(new SaturationSubfilter(saturationFinal));
-        finalImage = myFilter.processFilter(bitmap);
-    }
 
 }
