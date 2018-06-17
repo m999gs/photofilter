@@ -71,7 +71,7 @@ public class MainActivity extends AppCompatActivity implements ThumbnailCallback
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         activity = this;
-        drawable = R.drawable.dog;
+        drawable = R.drawable.cat;
         thumbImage=Bitmap.createScaledBitmap(BitmapFactory.decodeResource(this.getApplicationContext().getResources(), drawable), 640, 640, false);
         initUIWidgets();
         getPermissionToAccessStorage();
@@ -156,13 +156,14 @@ public class MainActivity extends AppCompatActivity implements ThumbnailCallback
         super.onActivityResult(requestCode, resultCode, data);
         if (resultCode == RESULT_OK && requestCode == PICK_IMAGE) {
             Uri imageuri = data.getData();
-            placeHolderImageView.setImageURI(imageuri);
             try {
                 thumbImage=MediaStore.Images.Media.getBitmap(this.getContentResolver(), imageuri);
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            initHorizontalList();
+            String path=thumbImage.toString();
+            drawable=Integer.parseInt(path);
+            initUIWidgets();
         }
     }
 
@@ -201,7 +202,6 @@ public class MainActivity extends AppCompatActivity implements ThumbnailCallback
 
             OutBitmap.compress(Bitmap.CompressFormat.PNG, 90, fOut);
             Toast.makeText(getApplicationContext(), "image Saved", Toast.LENGTH_SHORT).show();
-
             fOut.flush();
             fOut.close();
 

@@ -15,13 +15,13 @@
         android:layout_alignParentTop="true"
         android:background="@color/placeholder_background"
         android:scaleType="centerCrop"
-        tools:src="@drawable/dog" />
+        tools:src="@drawable/cat" />
     <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_height="@dimen/recycler_size"
+        android:layout_height="wrap_content"
         android:layout_alignParentLeft="true"
         android:layout_below="@id/place_holder_imageview"
-        android:layout_centerVertical="true"
+        android:layout_above="@id/tabs"
         android:background="@color/thumb_background_color">
 
         <android.support.v7.widget.RecyclerView
@@ -29,6 +29,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginBottom="@dimen/thumbnail_vertical_padding"
+            android:layout_centerVertical="true"
             android:layout_marginTop="@dimen/thumbnail_vertical_padding"
             android:clipToPadding="false" />
 
