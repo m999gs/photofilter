@@ -1,60 +1,26 @@
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.design.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/r"
     android:layout_width="match_parent"
+    android:id="@+id/coordinator_layout"
     android:layout_height="match_parent"
-    android:background="@color/thumb_background_color"
-    tools:context=".MainActivity">
+    tools:context="com.example.m999g.photofilters.MainActivity">
 
-
-    <ImageView
-        android:id="@+id/place_holder_imageview"
-        android:layout_width="match_parent"
-        android:layout_height="360dp"
-        android:layout_alignParentTop="true"
-        android:background="@color/placeholder_background"
-        android:scaleType="centerCrop"
-        tools:src="@drawable/cat" />
-    <RelativeLayout
+    <android.support.design.widget.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_alignParentLeft="true"
-        android:layout_below="@id/place_holder_imageview"
-        android:layout_above="@id/tabs"
-        android:background="@color/thumb_background_color">
+        android:theme="@style/AppTheme.AppBarOverlay">
 
-        <android.support.v7.widget.RecyclerView
-            android:id="@+id/thumbnails"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="@dimen/thumbnail_vertical_padding"
-            android:layout_centerVertical="true"
-            android:layout_marginTop="@dimen/thumbnail_vertical_padding"
-            android:clipToPadding="false" />
+        <android.support.v7.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="@android:color/white"
+            app:popupTheme="@style/AppTheme.PopupOverlay" />
 
+    </android.support.design.widget.AppBarLayout>
 
-    </RelativeLayout>
+    <include layout="@layout/content_main" />
 
-    <android.support.design.widget.TabLayout
-        android:id="@+id/tabs"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        app:tabGravity="fill"
-        app:tabMode="fixed">
-
-        <android.support.design.widget.TabItem
-            android:id="@+id/filterTab"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/filters" />
-
-        <android.support.design.widget.TabItem
-            android:id="@+id/editTab"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/edit" />
-    </android.support.design.widget.TabLayout>
-
-</RelativeLayout>
+</android.support.design.widget.CoordinatorLayout>

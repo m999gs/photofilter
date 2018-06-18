@@ -1,234 +1,333 @@
 package com.example.m999g.photofilters;
-
 import android.Manifest;
-import android.app.Activity;
-import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.content.res.TypedArray;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.Rect;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
-import android.os.Handler;
-import android.provider.MediaStore;
-import android.support.annotation.RequiresApi;
+import android.support.design.widget.CoordinatorLayout;
+import android.support.design.widget.Snackbar;
 import android.support.design.widget.TabLayout;
-import android.support.v4.content.ContextCompat;
+import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentManager;
+import android.support.v4.app.FragmentPagerAdapter;
+import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
+import android.support.v7.widget.Toolbar;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.Menu;
-import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
-import android.widget.TextView;
 import android.widget.Toast;
 
-import com.example.m999g.photofilters.FilterPack;
+import com.karumi.dexter.Dexter;
+import com.karumi.dexter.MultiplePermissionsReport;
+import com.karumi.dexter.PermissionToken;
+import com.karumi.dexter.listener.PermissionRequest;
+import com.karumi.dexter.listener.multi.MultiplePermissionsListener;
 import com.example.m999g.photofilters.imageprocessors.Filter;
 import com.example.m999g.photofilters.imageprocessors.subfilters.BrightnessSubFilter;
 import com.example.m999g.photofilters.imageprocessors.subfilters.ContrastSubFilter;
 import com.example.m999g.photofilters.imageprocessors.subfilters.SaturationSubfilter;
-import com.example.m999g.photofilters.utils.ThumbnailCallback;
-import com.example.m999g.photofilters.utils.ThumbnailItem;
-import com.example.m999g.photofilters.utils.ThumbnailsManager;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
-public class MainActivity extends AppCompatActivity implements ThumbnailCallback{
+import butterknife.BindView;
+import butterknife.ButterKnife;
+import utils.BitmapUtils;
 
-    private static int PICK_IMAGE = 1;
-    private static final int READ_MEMORY_PERMISSIONS_REQUEST = 1;
+public class MainActivity extends AppCompatActivity implements FiltersListFragment.FiltersListFragmentListener, EditImageFragment.EditImageFragmentListener {
 
-    private ImageView placeHolderImageView;
+    private static final String TAG = MainActivity.class.getSimpleName();
 
-    private RecyclerView thumbListView;
-    private Bitmap thumbImage;
-    int drawable;
+    public static final String IMAGE_NAME = "dog.jpg";
 
+    public static final int SELECT_GALLERY_IMAGE = 101;
 
+    @BindView(R.id.image_preview)
+    ImageView imagePreview;
+
+    @BindView(R.id.tabs)
+    TabLayout tabLayout;
+
+    @BindView(R.id.viewpager)
+    ViewPager viewPager;
+
+    @BindView(R.id.coordinator_layout)
+    CoordinatorLayout coordinatorLayout;
+
+    Bitmap originalImage;
+    // to backup image with filter applied
+    Bitmap filteredImage;
+
+    // the final image after applying
+    // brightness, saturation, contrast
+    Bitmap finalImage;
+
+    FiltersListFragment filtersListFragment;
+    EditImageFragment editImageFragment;
+
+    // modified image values
+    int brightnessFinal = 0;
+    float saturationFinal = 1.0f;
+    float contrastFinal = 1.0f;
+
+    // load native image filters library
     static {
         System.loadLibrary("NativeImageProcessor");
     }
-    private Activity activity;
 
-    @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        activity = this;
-        drawable = R.drawable.cat;
-        thumbImage=Bitmap.createScaledBitmap(BitmapFactory.decodeResource(this.getApplicationContext().getResources(), drawable), 640, 640, false);
-        initUIWidgets();
-        getPermissionToAccessStorage();
+        ButterKnife.bind(this);
+
+        Toolbar toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        getSupportActionBar().setTitle(getString(R.string.activity_title_main));
+
+        loadImage();
+
+        setupViewPager(viewPager);
+        tabLayout.setupWithViewPager(viewPager);
     }
 
+    private void setupViewPager(ViewPager viewPager) {
+        ViewPagerAdapter adapter = new ViewPagerAdapter(getSupportFragmentManager());
 
+        // adding filter list fragment
+        filtersListFragment = new FiltersListFragment();
+        filtersListFragment.setListener(this);
+
+        // adding edit image fragment
+        editImageFragment = new EditImageFragment();
+        editImageFragment.setListener(this);
+
+        adapter.addFragment(filtersListFragment, getString(R.string.tab_filters));
+        adapter.addFragment(editImageFragment, getString(R.string.tab_edit));
+
+        viewPager.setAdapter(adapter);
+    }
+
+    @Override
+    public void onFilterSelected(Filter filter) {
+        // reset image controls
+        resetControls();
+
+        // applying the selected filter
+        filteredImage = originalImage.copy(Bitmap.Config.ARGB_8888, true);
+        // preview filtered image
+        imagePreview.setImageBitmap(filter.processFilter(filteredImage));
+
+        finalImage = filteredImage.copy(Bitmap.Config.ARGB_8888, true);
+    }
+
+    @Override
+    public void onBrightnessChanged(final int brightness) {
+        brightnessFinal = brightness;
+        Filter myFilter = new Filter();
+        myFilter.addSubFilter(new BrightnessSubFilter(brightness));
+        imagePreview.setImageBitmap(myFilter.processFilter(finalImage.copy(Bitmap.Config.ARGB_8888, true)));
+    }
+
+    @Override
+    public void onSaturationChanged(final float saturation) {
+        saturationFinal = saturation;
+        Filter myFilter = new Filter();
+        myFilter.addSubFilter(new SaturationSubfilter(saturation));
+        imagePreview.setImageBitmap(myFilter.processFilter(finalImage.copy(Bitmap.Config.ARGB_8888, true)));
+    }
+
+    @Override
+    public void onContrastChanged(final float contrast) {
+        contrastFinal = contrast;
+        Filter myFilter = new Filter();
+        myFilter.addSubFilter(new ContrastSubFilter(contrast));
+        imagePreview.setImageBitmap(myFilter.processFilter(finalImage.copy(Bitmap.Config.ARGB_8888, true)));
+    }
+
+    @Override
+    public void onEditStarted() {
+
+    }
+
+    @Override
+    public void onEditCompleted() {
+        // once the editing is done i.e seekbar is drag is completed,
+        // apply the values on to filtered image
+        final Bitmap bitmap = filteredImage.copy(Bitmap.Config.ARGB_8888, true);
+
+        Filter myFilter = new Filter();
+        myFilter.addSubFilter(new BrightnessSubFilter(brightnessFinal));
+        myFilter.addSubFilter(new ContrastSubFilter(contrastFinal));
+        myFilter.addSubFilter(new SaturationSubfilter(saturationFinal));
+        finalImage = myFilter.processFilter(bitmap);
+    }
+
+    /**
+     * Resets image edit controls to normal when new filter
+     * is selected
+     */
+    private void resetControls() {
+        if (editImageFragment != null) {
+            editImageFragment.resetControls();
+        }
+        brightnessFinal = 0;
+        saturationFinal = 1.0f;
+        contrastFinal = 1.0f;
+    }
+
+    class ViewPagerAdapter extends FragmentPagerAdapter {
+        private final List<Fragment> mFragmentList = new ArrayList<>();
+        private final List<String> mFragmentTitleList = new ArrayList<>();
+
+        public ViewPagerAdapter(FragmentManager manager) {
+            super(manager);
+        }
+
+        @Override
+        public Fragment getItem(int position) {
+            return mFragmentList.get(position);
+        }
+
+        @Override
+        public int getCount() {
+            return mFragmentList.size();
+        }
+
+        public void addFragment(Fragment fragment, String title) {
+            mFragmentList.add(fragment);
+            mFragmentTitleList.add(title);
+        }
+
+        @Override
+        public CharSequence getPageTitle(int position) {
+            return mFragmentTitleList.get(position);
+        }
+    }
+
+    // load the default image from assets on app launch
+    private void loadImage() {
+        originalImage = BitmapUtils.getBitmapFromAssets(this, IMAGE_NAME, 300, 300);
+        filteredImage = originalImage.copy(Bitmap.Config.ARGB_8888, true);
+        finalImage = originalImage.copy(Bitmap.Config.ARGB_8888, true);
+        imagePreview.setImageBitmap(originalImage);
+    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        MenuInflater inflater = getMenuInflater();
-        inflater.inflate(R.menu.menu, menu);
+        getMenuInflater().inflate(R.menu.menu, menu);
         return true;
     }
 
-    private void initUIWidgets() {
-        thumbListView = (RecyclerView) findViewById(R.id.thumbnails);
-        placeHolderImageView = (ImageView) findViewById(R.id.place_holder_imageview);
-        placeHolderImageView.setImageBitmap(Bitmap.createScaledBitmap(BitmapFactory.decodeResource(this.getApplicationContext().getResources(), drawable), 640, 640, false));
-        initHorizontalList();
-    }
-
-    private void initHorizontalList() {
-        LinearLayoutManager layoutManager = new LinearLayoutManager(this);
-        layoutManager.setOrientation(LinearLayoutManager.HORIZONTAL);
-        layoutManager.scrollToPosition(0);
-        thumbListView.setLayoutManager(layoutManager);
-        thumbListView.setHasFixedSize(true);
-        bindDataToAdapter();
-    }
-
-    private void bindDataToAdapter() {
-        final Context context = this.getApplication();
-        Handler handler = new Handler();
-        Runnable r = new Runnable() {
-            public void run() {
-                ThumbnailsManager.clearThumbs();
-                List<Filter> filters = FilterPack.getFilterPack(getApplicationContext());
-
-                for (Filter filter : filters) {
-                    ThumbnailItem thumbnailItem = new ThumbnailItem();
-                    thumbnailItem.filterName=filter.getName();
-                    thumbnailItem.image = thumbImage;
-                    thumbnailItem.filter = filter;
-                    ThumbnailsManager.addThumb(thumbnailItem);
-                }
-
-                List<ThumbnailItem> thumbs = ThumbnailsManager.processThumbs(context);
-
-                ThumbnailsAdapter adapter = new ThumbnailsAdapter(thumbs, (ThumbnailCallback) activity);
-                thumbListView.setAdapter(adapter);
-
-                adapter.notifyDataSetChanged();
-            }
-        };
-        handler.post(r);
-    }
-
-
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.action_open:
-                addImageMethod();
-                return true;
-            case R.id.action_save:
-                takeAndSaveScreenShot(activity);
-                return true;
-            default:
-                return super.onOptionsItemSelected(item);
+        int id = item.getItemId();
+
+        if (id == R.id.action_open) {
+            openImageFromGallery();
+            return true;
+        }
+
+        if (id == R.id.action_save) {
+            saveImageToGallery();
+            return true;
+        }
+
+        return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (resultCode == RESULT_OK && requestCode == SELECT_GALLERY_IMAGE) {
+            Bitmap bitmap = BitmapUtils.getBitmapFromGallery(this, data.getData(), 800, 800);
+
+            // clear bitmap memory
+            originalImage.recycle();
+            finalImage.recycle();
+            finalImage.recycle();
+
+            originalImage = bitmap.copy(Bitmap.Config.ARGB_8888, true);
+            filteredImage = originalImage.copy(Bitmap.Config.ARGB_8888, true);
+            finalImage = originalImage.copy(Bitmap.Config.ARGB_8888, true);
+            imagePreview.setImageBitmap(originalImage);
+            bitmap.recycle();
+
+            // render selected image thumbnails
+            filtersListFragment.prepareThumbnail(originalImage);
         }
     }
 
-    public void addImageMethod() {
+    private void openImageFromGallery() {
+        Dexter.withActivity(this).withPermissions(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                .withListener(new MultiplePermissionsListener() {
+                    @Override
+                    public void onPermissionsChecked(MultiplePermissionsReport report) {
+                        if (report.areAllPermissionsGranted()) {
+                            Intent intent = new Intent(Intent.ACTION_PICK);
+                            intent.setType("image/*");
+                            startActivityForResult(intent, SELECT_GALLERY_IMAGE);
+                        } else {
+                            Toast.makeText(getApplicationContext(), "Permissions are not granted!", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+
+                    @Override
+                    public void onPermissionRationaleShouldBeShown(List<PermissionRequest> permissions, PermissionToken token) {
+                        token.continuePermissionRequest();
+                    }
+                }).check();
+    }
+
+    /*
+     * saves image to camera gallery
+     * */
+    private void saveImageToGallery() {
+        Dexter.withActivity(this).withPermissions(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                .withListener(new MultiplePermissionsListener() {
+                    @Override
+                    public void onPermissionsChecked(MultiplePermissionsReport report) {
+                        if (report.areAllPermissionsGranted()) {
+                            final String path = BitmapUtils.insertImage(getContentResolver(), finalImage, System.currentTimeMillis() + "_profile.jpg", null);
+                            if (!TextUtils.isEmpty(path)) {
+                                Snackbar snackbar = Snackbar
+                                        .make(coordinatorLayout, "Image saved to gallery!", Snackbar.LENGTH_LONG)
+                                        .setAction("OPEN", new View.OnClickListener() {
+                                            @Override
+                                            public void onClick(View view) {
+                                                openImage(path);
+                                            }
+                                        });
+
+                                snackbar.show();
+                            } else {
+                                Snackbar snackbar = Snackbar
+                                        .make(coordinatorLayout, "Unable to save image!", Snackbar.LENGTH_LONG);
+
+                                snackbar.show();
+                            }
+                        } else {
+                            Toast.makeText(getApplicationContext(), "Permissions are not granted!", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+
+                    @Override
+                    public void onPermissionRationaleShouldBeShown(List<PermissionRequest> permissions, PermissionToken token) {
+                        token.continuePermissionRequest();
+                    }
+                }).check();
+
+    }
+
+    // opening image in default image viewer app
+    private void openImage(String path) {
         Intent intent = new Intent();
-        intent.setType("image/*");
-        intent.setAction(Intent.ACTION_GET_CONTENT);
-        startActivityForResult(Intent.createChooser(intent, "Select Picture"), PICK_IMAGE);
+        intent.setAction(Intent.ACTION_VIEW);
+        intent.setDataAndType(Uri.parse(path), "image/*");
+        startActivity(intent);
     }
-
-    @Override
-    public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (resultCode == RESULT_OK && requestCode == PICK_IMAGE) {
-            Uri imageuri = data.getData();
-            try {
-                thumbImage=MediaStore.Images.Media.getBitmap(this.getContentResolver(), imageuri);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            String path=thumbImage.toString();
-            drawable=Integer.parseInt(path);
-            initUIWidgets();
-        }
-    }
-
-    public void takeAndSaveScreenShot(Activity mActivity) {
-        View MainView = mActivity.getWindow().getDecorView();
-        MainView.setDrawingCacheEnabled(true);
-        MainView.buildDrawingCache();
-        Bitmap MainBitmap = MainView.getDrawingCache();
-        Rect frame = new Rect();
-
-        mActivity.getWindow().getDecorView().getWindowVisibleDisplayFrame(frame);
-        //to remove statusBar from the taken sc
-        int statusBarHeight = frame.top;
-
-        //Action Bar Height
-        int actionBarHeight = 0;
-        final TypedArray styledAttributes = mActivity.getTheme().obtainStyledAttributes(
-                new int[]{android.R.attr.actionBarSize}
-        );
-        actionBarHeight = (int) styledAttributes.getDimension(0, 0);
-        styledAttributes.recycle();
-
-        //using screen size to create bitmap
-        int width = placeHolderImageView.getWidth();
-        int height = placeHolderImageView.getHeight();
-        Bitmap OutBitmap = Bitmap.createBitmap(MainBitmap, 0, statusBarHeight + actionBarHeight, width, height);
-        MainView.destroyDrawingCache();
-        try {
-
-            String path = Environment.getExternalStorageDirectory().toString();
-            OutputStream fOut = null;
-            //you can also using current time to generate name
-            String name = "Mohit";
-            File file = new File(path, name + ".png");
-            fOut = new FileOutputStream(file);
-
-            OutBitmap.compress(Bitmap.CompressFormat.PNG, 90, fOut);
-            Toast.makeText(getApplicationContext(), "image Saved", Toast.LENGTH_SHORT).show();
-            fOut.flush();
-            fOut.close();
-
-            //this line will add the saved picture to gallery
-            MediaStore.Images.Media.insertImage(getContentResolver(), file.getAbsolutePath(), file.getName(), file.getName());
-
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    @RequiresApi(api = Build.VERSION_CODES.M)
-    public void getPermissionToAccessStorage() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-            if (shouldShowRequestPermissionRationale(Manifest.permission.READ_EXTERNAL_STORAGE)) {
-                Toast.makeText(this, "Please allow permission!", Toast.LENGTH_SHORT).show();
-            }
-            requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, READ_MEMORY_PERMISSIONS_REQUEST);
-        }
-    }
-    @Override
-    public void onThumbnailClick(Filter filter) {
-        placeHolderImageView.setImageBitmap(filter.processFilter(Bitmap.createScaledBitmap(BitmapFactory.decodeResource(this.getApplicationContext().getResources(), drawable), 640, 640, false)));
-    }
-
-
-
 }

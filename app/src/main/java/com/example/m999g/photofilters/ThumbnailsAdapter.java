@@ -1,73 +1,91 @@
 package com.example.m999g.photofilters;
-
-import android.app.Fragment;
+import android.content.Context;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.widget.RecyclerView;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import com.example.m999g.photofilters.utils.ThumbnailCallback;
+import com.example.m999g.photofilters.imageprocessors.Filter;
 import com.example.m999g.photofilters.utils.ThumbnailItem;
 
 import java.util.List;
 
-public class ThumbnailsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
-    private static final String TAG = "THUMBNAILS_ADAPTER";
-    private static int lastPosition = -1;
-    private ThumbnailCallback thumbnailCallback;
-    private List<ThumbnailItem> dataSet;
+import butterknife.BindView;
+import butterknife.ButterKnife;
 
-    public ThumbnailsAdapter(List<ThumbnailItem> dataSet, ThumbnailCallback thumbnailCallback) {
-        Log.v(TAG, "Thumbnails Adapter has " + dataSet.size() + " items");
-        this.dataSet = dataSet;
-        this.thumbnailCallback = thumbnailCallback;
+/**
+ * Created by ravi on 23/10/17.
+ */
+
+public class ThumbnailsAdapter extends RecyclerView.Adapter<ThumbnailsAdapter.MyViewHolder> {
+
+    private List<ThumbnailItem> thumbnailItemList;
+    private ThumbnailsAdapterListener listener;
+    private Context mContext;
+    private int selectedIndex = 0;
+
+    public class MyViewHolder extends RecyclerView.ViewHolder {
+        @BindView(R.id.thumbnail)
+        ImageView thumbnail;
+
+        @BindView(R.id.filter_name)
+        TextView filterName;
+
+        public MyViewHolder(View view) {
+            super(view);
+
+            ButterKnife.bind(this, view);
+        }
     }
 
 
-    @Override
-    public RecyclerView.ViewHolder onCreateViewHolder(ViewGroup viewGroup, int i) {
-        Log.v(TAG, "On Create View Holder Called");
-        View itemView = LayoutInflater.
-                from(viewGroup.getContext()).
-                inflate(R.layout.list_thumbnail_item, viewGroup, false);
-        return new ThumbnailsViewHolder(itemView);
+    public ThumbnailsAdapter(Context context, List<ThumbnailItem> thumbnailItemList, ThumbnailsAdapterListener listener) {
+        mContext = context;
+        this.thumbnailItemList = thumbnailItemList;
+        this.listener = listener;
     }
 
     @Override
-    public void onBindViewHolder(RecyclerView.ViewHolder holder, final int i) {
-        final ThumbnailItem thumbnailItem = dataSet.get(i);
-        Log.v(TAG, "On Bind View Called");
-        ThumbnailsViewHolder thumbnailsViewHolder = (ThumbnailsViewHolder) holder;
-        thumbnailsViewHolder.thumbnail.setImageBitmap(thumbnailItem.image);
-        thumbnailsViewHolder.filterName.setText(thumbnailItem.filterName);
-        thumbnailsViewHolder.thumbnail.setScaleType(ImageView.ScaleType.FIT_START);
-        thumbnailsViewHolder.thumbnail.setOnClickListener(new View.OnClickListener() {
+    public MyViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+        View itemView = LayoutInflater.from(parent.getContext())
+                .inflate(R.layout.thumbnail_list_item, parent, false);
+
+        return new MyViewHolder(itemView);
+    }
+
+    @Override
+    public void onBindViewHolder(MyViewHolder holder, final int position) {
+        final ThumbnailItem thumbnailItem = thumbnailItemList.get(position);
+
+        holder.thumbnail.setImageBitmap(thumbnailItem.image);
+
+        holder.thumbnail.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick(View v) {
-                if (lastPosition != i) {
-                    thumbnailCallback.onThumbnailClick(thumbnailItem.filter);
-                    lastPosition = i;
-                }
+            public void onClick(View view) {
+                listener.onFilterSelected(thumbnailItem.filter);
+                selectedIndex = position;
+                notifyDataSetChanged();
             }
-
         });
+
+        holder.filterName.setText(thumbnailItem.filterName);
+
+        if (selectedIndex == position) {
+            holder.filterName.setTextColor(ContextCompat.getColor(mContext, R.color.filter_label_selected));
+        } else {
+            holder.filterName.setTextColor(ContextCompat.getColor(mContext, R.color.filter_label_normal));
+        }
     }
 
     @Override
     public int getItemCount() {
-        return dataSet.size();
+        return thumbnailItemList.size();
     }
 
-    public static class ThumbnailsViewHolder extends RecyclerView.ViewHolder {
-        public ImageView thumbnail;
-        public TextView filterName;
-        public ThumbnailsViewHolder(View v) {
-            super(v);
-            this.filterName= v.findViewById(R.id.filter_name);
-            this.thumbnail = v.findViewById(R.id.thumbnail);
-        }
+    public interface ThumbnailsAdapterListener {
+        void onFilterSelected(Filter filter);
     }
 }
