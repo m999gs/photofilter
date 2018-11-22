@@ -15,7 +15,7 @@
         android:layout_alignParentTop="true"
         android:background="@color/placeholder_background"
         android:scaleType="centerCrop"
-        tools:src="@drawable/cat" />
+        tools:src="@drawable/butterfly" />
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

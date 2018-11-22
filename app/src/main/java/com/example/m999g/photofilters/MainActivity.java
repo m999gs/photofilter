@@ -9,6 +9,7 @@ import android.content.res.TypedArray;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Rect;
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -71,7 +72,7 @@ public class MainActivity extends AppCompatActivity implements ThumbnailCallback
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         activity = this;
-        drawable = R.drawable.cat;
+        drawable = R.drawable.butterfly;
         thumbImage=Bitmap.createScaledBitmap(BitmapFactory.decodeResource(this.getApplicationContext().getResources(), drawable), 640, 640, false);
         initUIWidgets();
         getPermissionToAccessStorage();
@@ -161,8 +162,13 @@ public class MainActivity extends AppCompatActivity implements ThumbnailCallback
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            String path=thumbImage.toString();
-            drawable=Integer.parseInt(path);
+            try {
+                placeHolderImageView.setImageDrawable(Drawable.createFromStream(
+                        getContentResolver().openInputStream(imageuri),
+                        null));
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            }
             initUIWidgets();
         }
     }
